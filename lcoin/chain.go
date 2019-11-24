@@ -1,11 +1,12 @@
 package lcoin
 
 import (
-	"crypto/sha256"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
 )
 
@@ -38,30 +39,37 @@ func (c *Chain) Add(b *Block) {
 		b.PrevHash = c.Blocks[len(c.Blocks)-1].Hash
 	}
 
-	h := sha256.New()
-	h.Write(b.PrevHash)
-	h.Write([]byte(b.Payload))
-	b.Hash = h.Sum(nil)
+	b.Index = *big.NewInt(int64(len(c.Blocks)))
+
+	proof := big.NewInt(0)
+	var hsh []byte
+	for {
+		b.Proof = *proof
+		hsh = b.HashBlock()
+		if hsh[0] == 0 && hsh[1] == 0 {
+			break
+		}
+
+		proof = proof.Add(proof, big.NewInt(1))
+	}
+
+	b.Hash = hsh
 
 	c.Blocks = append(c.Blocks, b)
 }
 
 func (c *Chain) Validate() error {
-	h := sha256.New()
 	for i := range c.Blocks {
-		if i < len(c.Blocks)-1 && !isEqual(c.Blocks[i].Hash, c.Blocks[i+1].PrevHash) {
+		if i < len(c.Blocks)-1 && !bytes.Equal(c.Blocks[i].Hash, c.Blocks[i+1].PrevHash) {
 			return &Error{
 				err:   ErrPrevHashNotEqual,
 				Index: i + 1,
 			}
 		}
 
-		h.Reset()
-		h.Write(c.Blocks[i].PrevHash)
-		h.Write([]byte(c.Blocks[i].Payload))
-		elemHash := h.Sum(nil)
+		elemHash := c.Blocks[i].HashBlock()
 
-		if !isEqual(c.Blocks[i].Hash, elemHash) {
+		if !bytes.Equal(c.Blocks[i].Hash, elemHash) {
 			return &Error{
 				err:   ErrHashNotEqual,
 				Index: i,
@@ -72,20 +80,6 @@ func (c *Chain) Validate() error {
 	return nil
 }
 
-func isEqual(x, y []byte) bool {
-	if len(x) != len(y) {
-		return false
-	}
-
-	for i := 0; i < len(x); i++ {
-		if x[i] != y[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
 func (c *Chain) Print() {
 	for _, elem := range c.Blocks {
 		elem.print()
@@ -94,12 +88,12 @@ func (c *Chain) Print() {
 }
 
 func (c *Chain) ToJson(filename string) error {
-	bytes, err := json.MarshalIndent(c, "", "    ")
+	btes, err := json.MarshalIndent(c, "", "    ")
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(filename, bytes, 0644)
+	err = ioutil.WriteFile(filename, btes, 0644)
 	if err != nil {
 		return err
 	}

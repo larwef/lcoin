@@ -1,9 +1,11 @@
 package lcoin
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 )
 
 type MyHash []byte
@@ -18,20 +20,32 @@ func (m *MyHash) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	byts, err := hex.DecodeString(v)
+	hexBytes, err := hex.DecodeString(v)
 	if err != nil {
 		return err
 	}
 
-	*m = byts
+	*m = hexBytes
 
 	return nil
 }
 
 type Block struct {
-	Payload  string `json:"payload"`
-	PrevHash MyHash `json:"prevHash"`
-	Hash     MyHash `json:"hash"`
+	Index    big.Int `json:"index"`
+	Payload  string  `json:"payload"`
+	PrevHash MyHash  `json:"prevHash"`
+	Hash     MyHash  `json:"hash"`
+	Proof    big.Int `json:"proof"`
+}
+
+func (b *Block) HashBlock() []byte {
+	h := sha256.New()
+	h.Write(b.Index.Bytes())
+	h.Write([]byte(b.Payload))
+	h.Write(b.Proof.Bytes())
+	h.Write(b.PrevHash)
+
+	return h.Sum(nil)
 }
 
 func (b *Block) print() {
