@@ -3,51 +3,42 @@ package lcoin
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"math/big"
+	"github.com/larwef/lcoin/merkle"
 )
 
-type MyHash []byte
-
-func (m *MyHash) MarshalJSON() ([]byte, error) {
-	return json.Marshal(hex.EncodeToString(*m))
-}
-
-func (m *MyHash) UnmarshalJSON(data []byte) error {
-	var v string
-	if err := json.Unmarshal(data, &v); err != nil {
-		return err
-	}
-
-	hexBytes, err := hex.DecodeString(v)
-	if err != nil {
-		return err
-	}
-
-	*m = hexBytes
-
-	return nil
+type Header struct {
+	PrevHash   string `json:"prevHash"`
+	MerkleRoot string `json:"merkleRoot"`
+	Time       int64  `json:"time"`
+	Nonce      int64  `json:"nonce"`
 }
 
 type Block struct {
-	Index    big.Int `json:"index"`
-	Payload  string  `json:"payload"`
-	PrevHash MyHash  `json:"prevHash"`
-	Hash     MyHash  `json:"hash"`
-	Proof    big.Int `json:"proof"`
+	Header       Header   `json:"header"`
+	Transactions []string `json:"transactions"`
 }
 
-func (b *Block) HashBlock() []byte {
+func (b *Block) AddTransaction(transaction string) {
+	b.Transactions = append(b.Transactions, transaction)
+}
+
+func (b *Block) MerkleRoot() string {
 	h := sha256.New()
-	h.Write(b.Index.Bytes())
-	h.Write([]byte(b.Payload))
-	h.Write(b.Proof.Bytes())
-	h.Write(b.PrevHash)
+	var hashes [][]byte
+	for _, elem := range b.Transactions {
+		h.Write([]byte(elem))
+		hashes = append(hashes, h.Sum(nil))
+		h.Reset()
+	}
 
-	return h.Sum(nil)
+	_ = merkle.NewTree(hashes)
+
+	return ""
 }
 
-func (b *Block) print() {
-	fmt.Printf("Payload:\t%s\nPrev Hash:\t%x\nHash:\t\t%x\n", b.Payload, b.PrevHash, b.Hash)
+func printHasehs(hashes [][]byte) {
+	for _, elem := range hashes {
+		fmt.Println(hex.EncodeToString(elem))
+	}
 }
