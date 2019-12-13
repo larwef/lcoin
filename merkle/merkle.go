@@ -1,6 +1,7 @@
 package merkle
 
 import (
+	"bytes"
 	"crypto/sha256"
 )
 
@@ -9,12 +10,12 @@ type Tree struct {
 }
 
 type Node struct {
-	Left  *Node
-	Right *Node
-	Hash  []byte
+	Left      *Node
+	Right     *Node
+	Hash      [32]byte
 }
 
-func NewTree(hashes [][]byte) *Tree {
+func NewTree(hashes [][32]byte) *Tree {
 	var nodes []*Node
 
 	// Make leaf nodes
@@ -41,22 +42,33 @@ func NewTree(hashes [][]byte) *Tree {
 	}
 }
 
-func (t *Tree) Path(hash []byte) []string {
+func (t *Tree) findLeaf(hash [32]byte) *Node {
+	var stack []*Node
+	stack = append(stack, t.Root)
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1] // Pop of stack
 
+		if n.Left != nil {
+			stack = append(stack, n.Left)
+			stack = append(stack, n.Right)
+		}
+
+		if bytes.Equal(n.Hash[:], hash[:]) {
+			return n
+		}
+	}
+
+	return nil
 }
 
 func newNode(left, right *Node) *Node {
-	h := sha256.New()
-	h.Write(left.Hash)
-	h.Write(right.Hash)
-	firstHash := h.Sum(nil)
-	h.Reset()
-
-	h.Write(firstHash)
-
-	return &Node{
-		Left:  left,
-		Right: right,
-		Hash:  h.Sum(nil),
+	h1 := sha256.Sum256(append(left.Hash[:], right.Hash[:]...))
+	node := &Node{
+		Left:   left,
+		Right:  right,
+		Hash:   sha256.Sum256(h1[:]),
 	}
+
+	return node
 }

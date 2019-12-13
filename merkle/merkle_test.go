@@ -1,26 +1,69 @@
 package merkle
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
+	"log"
 	"testing"
 )
 
 func TestNewTree(t *testing.T) {
-	var hashes [][]byte
+	tree := NewTree(getHashes())
+	result := hex.EncodeToString(reverse(tree.Root.Hash[:]))
+
+	if result != expectedRoot {
+		t.Errorf("Excpected %s but got %s", expectedRoot, result)
+	}
+}
+
+//func TestTree_Path(t *testing.T) {
+//	hashes := getHashes()
+//
+//	tree := NewTree(hashes)
+//
+//	fmt.Println(hex.EncodeToString(tree.Root.Hash[:]))
+//
+//	for _, elem := range hashes {
+//		path := tree.Path(elem)
+//
+//		fmt.Println(hex.EncodeToString(path[len(path)-1][:]))
+//
+//		calculatedRoot := calculateRoot(elem, path)
+//
+//		if !bytes.Equal(calculatedRoot[:], tree.Root.Hash[:]) {
+//			t.Fatalf("Expected %s but got %s", hex.EncodeToString(tree.Root.Hash[:]), hex.EncodeToString(calculatedRoot[:]))
+//		} else {
+//			fmt.Println("Sucess")
+//		}
+//	}
+//}
+
+func calculateRoot(leaf [32]byte, path [][32]byte) [32]byte {
+	var tmp [32]byte
+	copy(tmp[:], leaf[:])
+	for _, elem := range path {
+		tmp = sha256.Sum256(append(tmp[:], elem[:]...))
+	}
+
+	return tmp
+}
+
+func getHashes() [][32]byte {
+	var hashes [][32]byte
 	for _, elem := range hexHashes {
 		hash, err := hex.DecodeString(elem)
 		if err != nil {
-			t.Errorf("Error parsing test data: %v\n", err)
+			log.Fatalf("Error parsing test data: %v\n", err)
 		}
 
-		hashes = append(hashes, reverse(hash))
+		var hash32 [32]byte
+		copy(hash32[:], reverse(hash))
+		hashes = append(hashes, hash32)
 	}
 
-	result := hex.EncodeToString(reverse(NewTree(hashes).Root.Hash))
-
-	if result != expected {
-		t.Errorf("Excpected %s but got %s", expected, result)
-	}
+	return hashes
 }
 
 func reverse(b []byte) []byte {
@@ -33,7 +76,7 @@ func reverse(b []byte) []byte {
 
 // Bitcoin uses little endian notation. Which is why the byteorder is reversed in the test.
 // This is an example from block 0000000000000000e067a478024addfecdc93628978aa52d91fabd4292982a50.
-var expected = "871714dcbae6c8193a2bb9b2a69fe1c0440399f38d94b3a0f1b447275a29978a"
+var expectedRoot = "871714dcbae6c8193a2bb9b2a69fe1c0440399f38d94b3a0f1b447275a29978a"
 
 var hexHashes = []string{
 	"00baf6626abc2df808da36a518c69f09b0d2ed0a79421ccfde4f559d2e42128b",

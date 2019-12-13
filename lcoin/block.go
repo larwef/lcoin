@@ -24,12 +24,9 @@ func (b *Block) AddTransaction(transaction string) {
 }
 
 func (b *Block) MerkleRoot() string {
-	h := sha256.New()
-	var hashes [][]byte
+	var hashes [][32]byte
 	for _, elem := range b.Transactions {
-		h.Write([]byte(elem))
-		hashes = append(hashes, h.Sum(nil))
-		h.Reset()
+		hashes = append(hashes, sha256.Sum256([]byte(elem)))
 	}
 
 	_ = merkle.NewTree(hashes)
