@@ -3,8 +3,11 @@ package merkle
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 )
+
+var ErrNodeNotFound = errors.New("couldn't find node")
 
 type Tree struct {
 	Root  *Node
@@ -52,15 +55,18 @@ func NewTree(hashes [][32]byte) *Tree {
 	}
 }
 
-// TODO: Split into function with known index and one who finds index and return error
-func (t *Tree) Proof(hash [32]byte) *Proof {
+func (t *Tree) ProofSearch(hash [32]byte) (*Proof, error) {
 	leaf := t.findLeaf(hash)
 	if leaf == nil {
-		return nil
+		return nil, ErrNodeNotFound
 	}
 
+	return t.Proof(leaf.Index), nil
+}
+
+func (t *Tree) Proof(index int) *Proof {
 	result := &Proof{
-		Index: leaf.Index,
+		Index: index,
 		Depth: t.Depth,
 	}
 
@@ -70,7 +76,7 @@ func (t *Tree) Proof(hash [32]byte) *Proof {
 		path *= 2
 		exponent -= 1
 	}
-	path += leaf.Index
+	path += index
 
 	pathStr := fmt.Sprintf("%b", path)
 

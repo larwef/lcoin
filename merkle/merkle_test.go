@@ -2,34 +2,80 @@ package merkle
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"log"
 	"strings"
 	"testing"
 )
 
+var testTable = []struct {
+	hashes       [][32]byte
+	expectedRoot string
+}{
+	{
+		hashes:       getHashes(hexHashes[0]),
+		expectedRoot: "b152eca4364850f3424c7ac2b337d606c5ca0a3f96f1554f8db33d2f6f130bbe",
+	},
+	{
+		hashes:       getHashes(hexHashes[1]),
+		expectedRoot: "01924de9b47237b83ad18e0bb474ca6c41afe4d7c7c80288437a29b5666f9872",
+	},
+}
+
 func TestNewTree(t *testing.T) {
-	for i, elem := range hexHashes {
-		tree := NewTree(getHashes(elem))
+	for _, elem := range testTable {
+		tree := NewTree(elem.hashes)
 		result := hex.EncodeToString(tree.Root.Hash[:])
 
-		if strings.ToLower(result) != strings.ToLower(expectedRoots[i]) {
-			t.Errorf("Excpected %s but got %s", expectedRoots[i], result)
+		if strings.ToLower(result) != strings.ToLower(elem.expectedRoot) {
+			t.Errorf("Excpected %s but got %s", elem.expectedRoot, result)
 		}
 	}
 }
 
 func TestTree_Proof(t *testing.T) {
-	hashes := getHashes(hexHashes[0])
+	for _, elem := range testTable {
+		tree := NewTree(elem.hashes)
 
-	tree := NewTree(hashes)
+		for j, elem := range elem.hashes {
+			rootIndex := tree.Proof(j).Root(elem)
 
-	for _, elem := range hashes {
-		root := tree.Proof(elem).Root(elem)
-
-		if !bytes.Equal(root[:], tree.Root.Hash[:]) {
-			t.Fatalf("Expected %s but got %s", hex.EncodeToString(tree.Root.Hash[:]), hex.EncodeToString(root[:]))
+			if !bytes.Equal(rootIndex[:], tree.Root.Hash[:]) {
+				t.Fatalf("Expected %s but got %s", hex.EncodeToString(tree.Root.Hash[:]), hex.EncodeToString(rootIndex[:]))
+			}
 		}
+	}
+}
+
+func TestTree_ProofSearch(t *testing.T) {
+	for _, elem := range testTable {
+		tree := NewTree(elem.hashes)
+
+		for _, elem := range elem.hashes {
+			search, err := tree.ProofSearch(elem)
+			if err != nil {
+				t.Fatalf("Got unexpected error: %v", err)
+			}
+
+			root := search.Root(elem)
+			if !bytes.Equal(root[:], tree.Root.Hash[:]) {
+				t.Fatalf("Expected %s but got %s", hex.EncodeToString(tree.Root.Hash[:]), hex.EncodeToString(root[:]))
+			}
+		}
+	}
+}
+
+func TestTree_ProofSearch_ErrNotFound(t *testing.T) {
+	for _, elem := range testTable {
+		tree := NewTree(elem.hashes)
+
+		_, err := tree.ProofSearch(sha256.Sum256([]byte("NonExistentHash")))
+		if !errors.Is(err, ErrNodeNotFound) {
+			t.Fatalf("Got unexpected error: %v", err)
+		}
+
 	}
 }
 
@@ -47,11 +93,6 @@ func getHashes(hexHashes []string) [][32]byte {
 	}
 
 	return hashes
-}
-
-var expectedRoots = []string{
-	"B152ECA4364850F3424C7AC2B337D606C5CA0A3F96F1554F8DB33D2F6F130BBE",
-	"01924de9b47237b83ad18e0bb474ca6c41afe4d7c7c80288437a29b5666f9872",
 }
 
 var hexHashes = [][]string{
