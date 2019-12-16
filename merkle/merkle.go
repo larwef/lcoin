@@ -3,26 +3,34 @@ package merkle
 import (
 	"bytes"
 	"crypto/sha256"
+	"fmt"
 )
 
 type Tree struct {
-	Root *Node
+	Root  *Node
+	Depth int
 }
 
 type Node struct {
-	Left      *Node
-	Right     *Node
-	Hash      [32]byte
+	Index int
+	Left  *Node
+	Right *Node
+	Hash  [32]byte
 }
 
 func NewTree(hashes [][32]byte) *Tree {
 	var nodes []*Node
 
+	depth := -1
 	// Make leaf nodes
-	for _, elem := range hashes {
-		node := Node{Hash: elem}
+	for i, elem := range hashes {
+		node := Node{
+			Index: i,
+			Hash:  elem,
+		}
 		nodes = append(nodes, &node)
 	}
+	depth++
 
 	for len(nodes) > 1 {
 		var tmp []*Node
@@ -35,11 +43,49 @@ func NewTree(hashes [][32]byte) *Tree {
 		}
 
 		nodes = tmp
+		depth++
 	}
 
 	return &Tree{
-		Root: nodes[0],
+		Root:  nodes[0],
+		Depth: depth,
 	}
+}
+
+// TODO: Split into function with known index and one who finds index and return error
+func (t *Tree) Proof(hash [32]byte) *Proof {
+	leaf := t.findLeaf(hash)
+	if leaf == nil {
+		return nil
+	}
+
+	result := &Proof{
+		Index: leaf.Index,
+		Depth: t.Depth,
+	}
+
+	path := 1
+	exponent := t.Depth
+	for exponent != 0 {
+		path *= 2
+		exponent -= 1
+	}
+	path += leaf.Index
+
+	pathStr := fmt.Sprintf("%b", path)
+
+	current := t.Root
+	for _, elem := range pathStr[1:] {
+		if string(elem) == "0" {
+			result.Hashes = append(result.Hashes, current.Right.Hash)
+			current = current.Left
+		} else {
+			result.Hashes = append(result.Hashes, current.Left.Hash)
+			current = current.Right
+		}
+	}
+
+	return result
 }
 
 func (t *Tree) findLeaf(hash [32]byte) *Node {
@@ -65,10 +111,42 @@ func (t *Tree) findLeaf(hash [32]byte) *Node {
 func newNode(left, right *Node) *Node {
 	h1 := sha256.Sum256(append(left.Hash[:], right.Hash[:]...))
 	node := &Node{
-		Left:   left,
-		Right:  right,
-		Hash:   sha256.Sum256(h1[:]),
+		Left:  left,
+		Right: right,
+		Hash:  sha256.Sum256(h1[:]),
 	}
 
 	return node
+}
+
+type Proof struct {
+	Index  int        `json:"index"`
+	Depth  int        `json:"depth"`
+	Hashes [][32]byte `json:"hashes"`
+}
+
+func (p *Proof) Root(leaf [32]byte) [32]byte {
+	var tmp [32]byte
+
+	path := 1
+	exponent := p.Depth
+	for exponent != 0 {
+		path *= 2
+		exponent -= 1
+	}
+	path += p.Index
+
+	pathStr := fmt.Sprintf("%b", path)
+
+	copy(tmp[:], leaf[:])
+	for i := len(pathStr) - 1; i > 0; i-- {
+		if string(pathStr[i]) == "0" {
+			tmp = sha256.Sum256(append(tmp[:], p.Hashes[i-1][:]...))
+		} else {
+			tmp = sha256.Sum256(append(p.Hashes[i-1][:], tmp[:]...))
+		}
+		tmp = sha256.Sum256(tmp[:])
+	}
+
+	return tmp
 }
