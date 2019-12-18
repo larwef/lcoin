@@ -1,12 +1,8 @@
 package merkle
 
 import (
-	"bytes"
 	"crypto/sha256"
-	"errors"
 )
-
-var ErrNodeNotFound = errors.New("couldn't find node")
 
 // Tree keeps track of the root of the Merkle tree.
 type Tree struct {
@@ -14,26 +10,18 @@ type Tree struct {
 	Depth int
 }
 
-// Node is a representation of a node in the Merkle tree.
-type Node struct {
-	Index int
-	Left  *Node
-	Right *Node
-	Hash  [32]byte
-}
-
 // NewTree makes a new Merkle tree from a list of leaf hashes.
 func NewTree(hashes [][32]byte) *Tree {
 	var nodes []*Node
 
 	// Make leaf nodes
-	for i, elem := range hashes {
+	for _, elem := range hashes {
 		node := Node{
-			Index: i,
-			Hash:  elem,
+			Hash: elem,
 		}
 		nodes = append(nodes, &node)
 	}
+
 	depth := 0
 
 	for len(nodes) > 1 {
@@ -54,16 +42,6 @@ func NewTree(hashes [][32]byte) *Tree {
 		Root:  nodes[0],
 		Depth: depth,
 	}
-}
-
-// ProofSearch searches for the hash and provides the proof if present.
-func (t *Tree) ProofSearch(hash [32]byte) (*Proof, error) {
-	leaf := t.findLeaf(hash)
-	if leaf == nil {
-		return nil, ErrNodeNotFound
-	}
-
-	return t.Proof(leaf.Index), nil
 }
 
 // Proof provides the proof for the provided index.
@@ -90,24 +68,11 @@ func (t *Tree) Proof(index int) *Proof {
 	return result
 }
 
-func (t *Tree) findLeaf(hash [32]byte) *Node {
-	var stack []*Node
-	stack = append(stack, t.Root)
-	for len(stack) > 0 {
-		n := stack[len(stack)-1]
-		stack = stack[:len(stack)-1] // Pop of stack
-
-		if n.Left != nil {
-			stack = append(stack, n.Left)
-			stack = append(stack, n.Right)
-		}
-
-		if bytes.Equal(n.Hash[:], hash[:]) {
-			return n
-		}
-	}
-
-	return nil
+// Node is a representation of a node in the Merkle tree.
+type Node struct {
+	Left  *Node
+	Right *Node
+	Hash  [32]byte
 }
 
 func newNode(left, right *Node) *Node {

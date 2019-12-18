@@ -2,9 +2,7 @@ package merkle
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"log"
 	"strings"
 	"testing"
@@ -51,36 +49,6 @@ func TestTree_Proof(t *testing.T) {
 				t.Fatalf("Expected %s but got %s", hex.EncodeToString(tree.Root.Hash[:]), hex.EncodeToString(root[:]))
 			}
 		}
-	}
-}
-
-func TestTree_ProofSearch(t *testing.T) {
-	for _, elem := range testTable {
-		tree := NewTree(elem.hashes)
-
-		for _, elem := range elem.hashes {
-			search, err := tree.ProofSearch(elem)
-			if err != nil {
-				t.Fatalf("Got unexpected error: %v", err)
-			}
-
-			root := search.Root(elem)
-			if !bytes.Equal(root[:], tree.Root.Hash[:]) {
-				t.Fatalf("Expected %s but got %s", hex.EncodeToString(tree.Root.Hash[:]), hex.EncodeToString(root[:]))
-			}
-		}
-	}
-}
-
-func TestTree_ProofSearch_ErrNotFound(t *testing.T) {
-	for _, elem := range testTable {
-		tree := NewTree(elem.hashes)
-
-		_, err := tree.ProofSearch(sha256.Sum256([]byte("NonExistentHash")))
-		if !errors.Is(err, ErrNodeNotFound) {
-			t.Fatalf("Got unexpected error: %v", err)
-		}
-
 	}
 }
 
