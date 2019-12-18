@@ -15,3 +15,6 @@ read:
 
 users:
 	go run cmd/generateusers/main.go
+
+clean:
+	go clean -testcache

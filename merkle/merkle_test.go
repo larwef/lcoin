@@ -15,11 +15,16 @@ var testTable = []struct {
 	expectedRoot string
 }{
 	{
-		hashes:       getHashes(hexHashes[0]),
-		expectedRoot: "b152eca4364850f3424c7ac2b337d606c5ca0a3f96f1554f8db33d2f6f130bbe",
+		hashes: getHashes(hexHashes[0]),
+		// Not sure how a Merkle tree with one node is define, but assuming for now that it should be the hash of that node.
+		expectedRoot: "ee49c5f6a5129ccaf2abebbc1d6d07a402a600af6221476b89aafaa683ca95b7",
 	},
 	{
 		hashes:       getHashes(hexHashes[1]),
+		expectedRoot: "b152eca4364850f3424c7ac2b337d606c5ca0a3f96f1554f8db33d2f6f130bbe",
+	},
+	{
+		hashes:       getHashes(hexHashes[2]),
 		expectedRoot: "01924de9b47237b83ad18e0bb474ca6c41afe4d7c7c80288437a29b5666f9872",
 	},
 }
@@ -40,10 +45,10 @@ func TestTree_Proof(t *testing.T) {
 		tree := NewTree(elem.hashes)
 
 		for j, elem := range elem.hashes {
-			rootIndex := tree.Proof(j).Root(elem)
+			root := tree.Proof(j).Root(elem)
 
-			if !bytes.Equal(rootIndex[:], tree.Root.Hash[:]) {
-				t.Fatalf("Expected %s but got %s", hex.EncodeToString(tree.Root.Hash[:]), hex.EncodeToString(rootIndex[:]))
+			if !bytes.Equal(root[:], tree.Root.Hash[:]) {
+				t.Fatalf("Expected %s but got %s", hex.EncodeToString(tree.Root.Hash[:]), hex.EncodeToString(root[:]))
 			}
 		}
 	}
@@ -97,16 +102,19 @@ func getHashes(hexHashes []string) [][32]byte {
 
 var hexHashes = [][]string{
 	{
-		"E1AF205960AE338A37174B407EE71067C3CD7F04D48A5CEC7E13F6ECCB61DCBC",
-		"A314970CD7C647D1CC0A477E1A2122B98205B6924B73001B8DAB20EE81C2F4F7",
-		"B08EB9DCE0452A1B1970C4D29E88BDEE07669A2A5D1B08586D7FFA17B2E3F6B5",
-		"958B9E94AEA9A485BA494C50FB3192558057F7CAED9705D4B11369F071F10642",
-		"3D278CA01CC527D4C7D577B668E0B976FBBCB94E6A9BA89664C721F36FADA6A1",
-		"95AFFA405501498EF6F4E4B6CDDC1F1B24B9D2E534584B31A9142C453920C889",
-		"D97A21CF46FD5AFB0BF9EA4237BC4BF5C84E8B47D38D1EEE2BBEB5C0F8A1C625",
-		"AE1E670BDBF8AB984F412E6102C369AECA2CED933A1DE74712CCDA5EDAF4EE57",
-		"90E03319DDC9D48DA38AB39B2F37C0A5AF5AFC736F6FF2A9D8B8653E0FEB308D",
-		"84251842A4C0F0E188E1C2BF643EC37A1402DD86A25A9AB5004633467D16E313",
+		"ee49c5f6a5129ccaf2abebbc1d6d07a402a600af6221476b89aafaa683ca95b7",
+	},
+	{
+		"e1af205960ae338a37174b407ee71067c3cd7f04d48a5cec7e13f6eccb61dcbc",
+		"a314970cd7c647d1cc0a477e1a2122b98205b6924b73001b8dab20ee81c2f4f7",
+		"b08eb9dce0452a1b1970c4d29e88bdee07669a2a5d1b08586d7ffa17b2e3f6b5",
+		"958b9e94aea9a485ba494c50fb3192558057f7caed9705d4b11369f071f10642",
+		"3d278ca01cc527d4c7d577b668e0b976fbbcb94e6a9ba89664c721f36fada6a1",
+		"95affa405501498ef6f4e4b6cddc1f1b24b9d2e534584b31a9142c453920c889",
+		"d97a21cf46fd5afb0bf9ea4237bc4bf5c84e8b47d38d1eee2bbeb5c0f8a1c625",
+		"ae1e670bdbf8ab984f412e6102c369aeca2ced933a1de74712ccda5edaf4ee57",
+		"90e03319ddc9d48da38ab39b2f37c0a5af5afc736f6ff2a9d8b8653e0feb308d",
+		"84251842a4c0f0e188e1c2bf643ec37a1402dd86a25a9ab5004633467d16e313",
 	},
 	{
 		"00baf6626abc2df808da36a518c69f09b0d2ed0a79421ccfde4f559d2e42128b",

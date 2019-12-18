@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"errors"
-	"fmt"
 )
 
 var ErrNodeNotFound = errors.New("couldn't find node")
 
+// Tree keeps track of the root of the Merkle tree.
 type Tree struct {
 	Root  *Node
 	Depth int
 }
 
+// Node is a representation of a node in the Merkle tree.
 type Node struct {
 	Index int
 	Left  *Node
@@ -21,10 +22,10 @@ type Node struct {
 	Hash  [32]byte
 }
 
+// NewTree makes a new Merkle tree from a list of leaf hashes.
 func NewTree(hashes [][32]byte) *Tree {
 	var nodes []*Node
 
-	depth := -1
 	// Make leaf nodes
 	for i, elem := range hashes {
 		node := Node{
@@ -33,7 +34,7 @@ func NewTree(hashes [][32]byte) *Tree {
 		}
 		nodes = append(nodes, &node)
 	}
-	depth++
+	depth := 0
 
 	for len(nodes) > 1 {
 		var tmp []*Node
@@ -55,6 +56,7 @@ func NewTree(hashes [][32]byte) *Tree {
 	}
 }
 
+// ProofSearch searches for the hash and provides the proof if present.
 func (t *Tree) ProofSearch(hash [32]byte) (*Proof, error) {
 	leaf := t.findLeaf(hash)
 	if leaf == nil {
@@ -64,25 +66,19 @@ func (t *Tree) ProofSearch(hash [32]byte) (*Proof, error) {
 	return t.Proof(leaf.Index), nil
 }
 
+// Proof provides the proof for the provided index.
 func (t *Tree) Proof(index int) *Proof {
 	result := &Proof{
 		Index: index,
 		Depth: t.Depth,
 	}
 
-	path := 1
-	exponent := t.Depth
-	for exponent != 0 {
-		path *= 2
-		exponent -= 1
-	}
-	path += index
-
-	pathStr := fmt.Sprintf("%b", path)
+	// (2^depth)+index. 0: left, 1: right.
+	path := 1<<t.Depth + index
 
 	current := t.Root
-	for _, elem := range pathStr[1:] {
-		if string(elem) == "0" {
+	for i := 0; i < t.Depth; i++ {
+		if path&(1<<(t.Depth-1-i)) == 0 {
 			result.Hashes = append(result.Hashes, current.Right.Hash)
 			current = current.Left
 		} else {
@@ -131,25 +127,18 @@ type Proof struct {
 	Hashes [][32]byte `json:"hashes"`
 }
 
+// Root calculated the merkle root based on the Proof.
 func (p *Proof) Root(leaf [32]byte) [32]byte {
+	// (2^depth)+index
+	path := 1<<p.Depth + p.Index
+
 	var tmp [32]byte
-
-	path := 1
-	exponent := p.Depth
-	for exponent != 0 {
-		path *= 2
-		exponent -= 1
-	}
-	path += p.Index
-
-	pathStr := fmt.Sprintf("%b", path)
-
 	copy(tmp[:], leaf[:])
-	for i := len(pathStr) - 1; i > 0; i-- {
-		if string(pathStr[i]) == "0" {
-			tmp = sha256.Sum256(append(tmp[:], p.Hashes[i-1][:]...))
+	for i := 0; i < p.Depth; i++ {
+		if path&(1<<i) == 0 {
+			tmp = sha256.Sum256(append(tmp[:], p.Hashes[p.Depth-i-1][:]...))
 		} else {
-			tmp = sha256.Sum256(append(p.Hashes[i-1][:], tmp[:]...))
+			tmp = sha256.Sum256(append(p.Hashes[p.Depth-i-1][:], tmp[:]...))
 		}
 		tmp = sha256.Sum256(tmp[:])
 	}
