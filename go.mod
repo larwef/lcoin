@@ -1,3 +1,3 @@
 module github.com/larwef/lcoin
 
-go 1.13
+go 1.15
