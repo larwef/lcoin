@@ -86,6 +86,7 @@ func newNode(left, right *Node) *Node {
 	return node
 }
 
+// Proof is ...
 type Proof struct {
 	Index  int        `json:"index"`
 	Depth  int        `json:"depth"`

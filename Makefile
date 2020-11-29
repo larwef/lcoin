@@ -7,14 +7,5 @@ test:
 	golint ./...
 	go test ./... -v
 
-write:
-	go run cmd/write/main.go
-
-read:
-	go run cmd/read/main.go
-
-users:
-	go run cmd/generateusers/main.go
-
 clean:
 	go clean -testcache
